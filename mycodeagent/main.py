@@ -2,7 +2,7 @@ import json
 from typing import List
 from llm import SYSTEM, call_llm
 from tools import TOOL_HANDLERS
-from permission import check_permission
+from hooks import trigger_hooks
 
         
 def agent_loop(messages: List):
@@ -13,6 +13,11 @@ def agent_loop(messages: List):
         
         tool_calls = message.tool_calls
         if not tool_calls:
+            force = trigger_hooks("Stop", messages)   # ← 退出之前
+            if force:
+                # hook 返回消息 → 注入消息并继续执行
+                messages.append({"role": "user", "content": force})
+                continue
             return
         
         for tool_call in tool_calls:
@@ -21,8 +26,9 @@ def agent_loop(messages: List):
             args = json.loads(func.arguments)
             print(f"\033[33m> {func.name}\033[0m")
             
-            if not check_permission(name, args):
-                print(f"\033[31m< Permission denied.\033[0m")
+            blocked = trigger_hooks("PreToolUse", name, args)
+            if blocked:
+                print(f"\033[31m< Tool blocked: {blocked}\033[0m")
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.id,
@@ -33,6 +39,8 @@ def agent_loop(messages: List):
             handler = TOOL_HANDLERS[func.name]
             output = handler(**args) if handler else f"Unknown: {func.name}"
             print(f"\033[32m< {str(output)[:200]}\033[0m")
+            
+            trigger_hooks("PostToolUse", name, output)
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call.id,
@@ -49,6 +57,7 @@ if __name__ == "__main__":
             query = input("\001\033[36m\002q >> \001\033[0m\002")
         except EOFError, KeyboardInterrupt:
             break
+        trigger_hooks("UserPromptSubmit", query)
         
         history.append({"role": "user", "content": query})
         

@@ -68,3 +68,18 @@ def check_permission(tool_name: str, args: dict) -> bool:
             return False
 
     return True
+
+
+def permission_hook(tool_name: str, args: dict) -> str | None:
+    if tool_name == "bash":
+        reason = check_deny_list(args.get("command", ""))
+        if reason:
+            return reason
+    
+    reason = check_rules(tool_name, args)
+    if reason:
+        decision = ask_user(tool_name, args, reason)
+        if decision == "deny":
+            return "Permission denied by user"
+    
+    return None
