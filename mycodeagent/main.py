@@ -2,6 +2,7 @@ import json
 from typing import List
 from llm import SYSTEM, call_llm
 from tools import TOOL_HANDLERS
+from permission import check_permission
 
         
 def agent_loop(messages: List):
@@ -16,16 +17,27 @@ def agent_loop(messages: List):
         
         for tool_call in tool_calls:
             func = tool_call.function
-            arguments = json.loads(func.arguments)
+            name = func.name
+            args = json.loads(func.arguments)
             print(f"\033[33m> {func.name}\033[0m")
+            
+            if not check_permission(name, args):
+                print(f"\033[31m< Permission denied.\033[0m")
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": "Permission denied."
+                })
+                continue
+            
             handler = TOOL_HANDLERS[func.name]
-            output = handler(**arguments) if handler else f"Unknown: {func.name}"
+            output = handler(**args) if handler else f"Unknown: {func.name}"
             print(f"\033[32m< {str(output)[:200]}\033[0m")
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call.id,
                 "content": output
-            })
+            }) 
 
 
 if __name__ == "__main__":
