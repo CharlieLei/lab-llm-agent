@@ -20,7 +20,7 @@ def agent_loop(messages: List):
             print(f"\033[33m> {func.name}\033[0m")
             handler = TOOL_HANDLERS[func.name]
             output = handler(**arguments) if handler else f"Unknown: {func.name}"
-            print(f"\033[33m< {str(output)[:200]}\033[0m")
+            print(f"\033[32m< {str(output)[:200]}\033[0m")
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call.id,
