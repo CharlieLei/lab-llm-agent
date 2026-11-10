@@ -31,9 +31,17 @@ def context_inject_hook(query: str) -> str | None:
 
 def log_hook(tool_name, args):
     """PreToolUse: log every tool call."""
-    args_preview = str(list(args.values())[:2])[:60]
-    print(f"\033[90m[HOOK] {tool_name}({args_preview})\033[0m")
+    args_preview = str(list(args.values())[:2])
+    if len(args_preview) > 60:
+        args_preview = args_preview[:60] + " ...(more)"
+    print(f"\033[33m> {tool_name} {args_preview}\033[0m")
     return None
+
+
+def print_output_hook(tool_name, output):
+    if len(output) > 60:
+        output = output[:200] + "   ...(more)"
+    print(f"\033[32m< {str(output)}\033[0m")
 
 
 def large_output_hook(tool_name, output):
@@ -52,5 +60,6 @@ def summary_hook(messages: list):
 register_hook("UserPromptSubmit", context_inject_hook)
 register_hook("PreToolUse", permission_hook)
 register_hook("PreToolUse", log_hook)
+register_hook("PostToolUse", print_output_hook)
 register_hook("PostToolUse", large_output_hook)
 register_hook("Stop", summary_hook)

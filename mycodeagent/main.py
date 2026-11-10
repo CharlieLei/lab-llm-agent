@@ -7,8 +7,11 @@ from todo import TODO
 
         
 def agent_loop(messages: List):
+    loop_cnt = 0
     while True:
-        print("\033[31m[LOOP] start.\033[0m")
+        loop_cnt += 1
+        print(f"\033[90m[MAIN] loop {loop_cnt}.\033[0m")
+        
         message = call_llm(messages=messages)
         
         messages.append({"role": message.role, "content": message.content, "tool_calls": message.tool_calls})
@@ -27,7 +30,6 @@ def agent_loop(messages: List):
             func = tool_call.function
             name = func.name
             args = json.loads(func.arguments)
-            print(f"\033[33m> {func.name}\033[0m")
             
             if name == "todo_write":
                 used_todo = True
@@ -44,7 +46,6 @@ def agent_loop(messages: List):
             
             handler = TOOL_HANDLERS[func.name]
             output = handler(**args) if handler else f"Unknown: {func.name}"
-            print(f"\033[32m< {str(output)[:200]}\033[0m")
             
             trigger_hooks("PostToolUse", name, output)
             messages.append({
@@ -56,6 +57,7 @@ def agent_loop(messages: List):
         TODO.record(used_todo)
         remind = TODO.remind()
         if remind:
+            print(f"\033[31m< Todo reminded.\033[0m")
             messages.append({
                 "role": "user",
                 "content": remind
