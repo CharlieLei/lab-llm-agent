@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import subprocess
+from todo import TODO
 
 
 WORKDIR = Path.cwd()
@@ -158,6 +159,37 @@ TOOLS = [
         "required": ["pattern"]
       }
     }
+  },
+  {
+    "type": "function",
+    "function": {
+      "description": "Create and manage a task list for your current coding session.",
+      "name": "todo_write",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "todos": {
+            "items": {
+              "properties": {
+                "content": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "status": {
+                  "enum": ["pending", "in_progress", "completed"],
+                  "type": "string"
+                }
+              },
+              "required": ["content", "status"],
+              "type": "object"
+            },
+            "maxItems": 20,
+            "type": "array"
+          }
+        },
+        "required": ["todos"]
+      }
+    }
   }
 ]
 
@@ -167,4 +199,5 @@ TOOL_HANDLERS = {
     "write_file": run_write,
     "edit_file": run_edit, 
     "glob": run_glob,
+    "todo_write": TODO.run_todo_write
 }

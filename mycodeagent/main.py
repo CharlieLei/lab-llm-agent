@@ -3,10 +3,12 @@ from typing import List
 from llm import SYSTEM, call_llm
 from tools import TOOL_HANDLERS
 from hooks import trigger_hooks
+from todo import TODO
 
         
 def agent_loop(messages: List):
     while True:
+        print("\033[31m[LOOP] start.\033[0m")
         message = call_llm(messages=messages)
         
         messages.append({"role": message.role, "content": message.content, "tool_calls": message.tool_calls})
@@ -20,11 +22,15 @@ def agent_loop(messages: List):
                 continue
             return
         
+        used_todo = False
         for tool_call in tool_calls:
             func = tool_call.function
             name = func.name
             args = json.loads(func.arguments)
             print(f"\033[33m> {func.name}\033[0m")
+            
+            if name == "todo_write":
+                used_todo = True
             
             blocked = trigger_hooks("PreToolUse", name, args)
             if blocked:
@@ -45,7 +51,15 @@ def agent_loop(messages: List):
                 "role": "tool",
                 "tool_call_id": tool_call.id,
                 "content": output
-            }) 
+            })
+        
+        TODO.record(used_todo)
+        remind = TODO.remind()
+        if remind:
+            messages.append({
+                "role": "user",
+                "content": remind
+            })
 
 
 if __name__ == "__main__":
