@@ -1,7 +1,7 @@
 import json
 from typing import List
 from llm import WORKDIR, MODEL, ENVIRONMENT_PROMPT, client
-from tools import TOOLS, TOOL_HANDLERS
+from tools import TOOLS, TOOL_HANDLERS, execute_tool
 from hooks import trigger_hooks
 from todo import TODO
 
@@ -32,7 +32,11 @@ def agent_loop(messages: List):
         
         message = call_llm(messages=messages)
         
-        messages.append({"role": message.role, "content": message.content, "tool_calls": message.tool_calls})
+        messages.append({
+            "role": message.role, 
+            "content": message.content, 
+            "tool_calls": message.tool_calls
+        })
         
         tool_calls = message.tool_calls
         if not tool_calls:
@@ -45,35 +49,20 @@ def agent_loop(messages: List):
         
         used_todo = False
         for tool_call in tool_calls:
-            func = tool_call.function
-            name = func.name
-            args = json.loads(func.arguments)
+            name = tool_call.function.name
+            args = json.loads(tool_call.function.arguments)
             
             if name == "todo_write":
                 used_todo = True
             
-            blocked = trigger_hooks("PreToolUse", name, args)
-            if blocked:
-                print(f"\033[31m< Tool blocked: {blocked}\033[0m")
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "content": "Permission denied."
-                })
-                continue
-            
-            handler = TOOL_HANDLERS[func.name]
-            output = handler(**args) if handler else f"Unknown: {func.name}"
-            
-            trigger_hooks("PostToolUse", name, output)
+            output = execute_tool(TOOL_HANDLERS, name, args)
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call.id,
                 "content": output
             })
         
-        TODO.record(used_todo)
-        remind = TODO.remind()
+        remind = TODO.record(used_todo)
         if remind:
             print(f"\033[31m< Todo reminded.\033[0m")
             messages.append({
@@ -89,7 +78,7 @@ if __name__ == "__main__":
     while True:
         try:
             query = input("\001\033[36m\002q >> \001\033[0m\002")
-        except EOFError, KeyboardInterrupt:
+        except (EOFError, KeyboardInterrupt):
             break
         trigger_hooks("UserPromptSubmit", query)
         

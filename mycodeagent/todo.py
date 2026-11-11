@@ -51,13 +51,15 @@ class TodoManager:
         lines.append(f"({done} / {len(self.items)} completed)")
         return "\n".join(lines)
     
-    def record(self, used_todo: bool):
+    def record(self, used_todo: bool) -> str | None:
+        if not self.items:
+            return None
+        
         self.round_since_todo = 0 if used_todo else self.round_since_todo + 1
-    
-    def remind(self) -> str | None:
         if self.round_since_todo >= 3:
             return "<reminder>Update your todos.</reminder>"
-        return None
-          
+        else:
+            return None
+
 
 TODO = TodoManager()

@@ -2,7 +2,14 @@ import os
 from pathlib import Path
 import subprocess
 from llm import WORKDIR
+from hooks import trigger_hooks
 from todo import TODO
+
+
+def run_subagent(prompt: str) -> str:
+    # Imported lazily to avoid a circular import: subagent imports this module.
+    from subagent import run_subagent as _run_subagent
+    return _run_subagent(prompt)
 
 
 def safe_path(p: str) -> Path:
@@ -83,7 +90,7 @@ def run_glob(pattern: str) -> str:
 
 
 
-TOOLS = [
+BASE_TOOLS = [
   {
     "type": "function",
     "function": {
@@ -157,8 +164,19 @@ TOOLS = [
         "required": ["pattern"]
       }
     }
-  },
-  {
+  }
+]
+
+BASE_HANDLERS = {
+    "bash": run_bash, 
+    "read_file": run_read, 
+    "write_file": run_write,
+    "edit_file": run_edit, 
+    "glob": run_glob,
+    "todo_write": TODO.run_todo_write
+}
+
+TODO_WRITE_TOOL = {
     "type": "function",
     "function": {
       "description": "Create and manage a task list for your current coding session.",
@@ -188,14 +206,42 @@ TOOLS = [
         "required": ["todos"]
       }
     }
-  }
-]
+}
+
+SPAWN_SUBAGENT_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "spawn_subagent",
+        "description": "Run a subagent with fresh conversation context and return its final text.",
+        "parameters": {
+            "type": "object",
+            "properties": {"prompt": {"type": "string", "minLength": 1}},
+            "required": ["prompt"],
+        },
+    }
+}
+
+SUB_TOOLS = list(BASE_TOOLS)
+
+SUB_HANDLERS = dict(BASE_HANDLERS)
+
+TOOLS = [*BASE_TOOLS, TODO_WRITE_TOOL, SPAWN_SUBAGENT_TOOL]
 
 TOOL_HANDLERS = {
-    "bash": run_bash, 
-    "read_file": run_read, 
-    "write_file": run_write,
-    "edit_file": run_edit, 
-    "glob": run_glob,
-    "todo_write": TODO.run_todo_write
+    **BASE_HANDLERS,
+    "todo_write": TODO.run_todo_write,
+    "spawn_subagent": run_subagent
 }
+
+
+def execute_tool(handlers, tool_name, args):
+    blocked = trigger_hooks("PreToolUse", tool_name, args)
+    if blocked:
+        print(f"\033[31m< Tool blocked: {blocked}\033[0m")
+        return blocked
+    
+    handler = handlers[tool_name]
+    output = handler(**args) if handler else f"Unknown: {tool_name}"
+    
+    trigger_hooks("PostToolUse", tool_name, output)
+    return output
