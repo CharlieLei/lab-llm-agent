@@ -1,10 +1,8 @@
 import os
 from pathlib import Path
 import subprocess
+from llm import WORKDIR
 from todo import TODO
-
-
-WORKDIR = Path.cwd()
 
 
 def safe_path(p: str) -> Path:

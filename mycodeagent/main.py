@@ -1,11 +1,29 @@
 import json
 from typing import List
-from llm import SYSTEM, call_llm
-from tools import TOOL_HANDLERS
+from llm import WORKDIR, MODEL, ENVIRONMENT_PROMPT, client
+from tools import TOOLS, TOOL_HANDLERS
 from hooks import trigger_hooks
 from todo import TODO
 
-        
+
+SYSTEM = (
+    f"You are a coding agent at {WORKDIR}. Environment: {ENVIRONMENT_PROMPT}. "
+    "Before starting any multi-step task, use todo_write to plan your steps. "
+    "Update status as you go."
+)
+
+
+def call_llm(messages):
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=messages,
+        tools=TOOLS,
+        tool_choice="auto",
+        parallel_tool_calls=True,
+    )
+    return response.choices[0].message
+
+
 def agent_loop(messages: List):
     loop_cnt = 0
     while True:
