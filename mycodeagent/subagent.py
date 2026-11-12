@@ -1,24 +1,18 @@
 import json
-from llm import WORKDIR, MODEL, ENVIRONMENT_PROMPT, client
-from tools import SUB_TOOLS, SUB_HANDLERS, execute_tool
+from config import WORKDIR, MODEL, ENVIRONMENT_PROMPT
+from llm import call_llm
+from tools import BASE_TOOLS, BASE_HANDLERS, execute_tool
 from hooks import trigger_hooks
 
+
+SUB_TOOLS = list(BASE_TOOLS)
+
+SUB_HANDLERS = dict(BASE_HANDLERS)
 
 SUB_SYSTEM = (
     f"You are a coding agent at {WORKDIR}. Environment: {ENVIRONMENT_PROMPT}. "
     "Complete the given task, then return a concise final answer."
 )
-
-
-def call_llm(messages):
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=messages,
-        tools=SUB_TOOLS,
-        tool_choice="auto",
-        parallel_tool_calls=True,
-    )
-    return response.choices[0].message
 
 
 def run_subagent(prompt: str) -> str:
@@ -28,8 +22,9 @@ def run_subagent(prompt: str) -> str:
         {"role": "user", "content": prompt}
     ]
     
-    for _ in range(30):
-        message = call_llm(messages)
+    for loop_cnt in range(30):
+        print(f"\033[90m[SUBAGENT] loop {loop_cnt}.\033[0m")
+        message = call_llm(SUB_TOOLS, messages)
         
         messages.append({
             "role": message.role, 
@@ -61,3 +56,17 @@ def run_subagent(prompt: str) -> str:
     
     print("\033[35m[Subagent stopped]\033[0m\n")
     return "Subagent stopped after 30 turns without a final answer."  
+
+
+SPAWN_SUBAGENT_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "spawn_subagent",
+        "description": "Run a subagent with fresh conversation context and return its final text.",
+        "parameters": {
+            "type": "object",
+            "properties": {"prompt": {"type": "string", "minLength": 1}},
+            "required": ["prompt"],
+        },
+    }
+}

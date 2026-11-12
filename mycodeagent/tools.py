@@ -1,15 +1,8 @@
 import os
 from pathlib import Path
 import subprocess
-from llm import WORKDIR
+from config import WORKDIR
 from hooks import trigger_hooks
-from todo import TODO
-
-
-def run_subagent(prompt: str) -> str:
-    # Imported lazily to avoid a circular import: subagent imports this module.
-    from subagent import run_subagent as _run_subagent
-    return _run_subagent(prompt)
 
 
 def safe_path(p: str) -> Path:
@@ -90,81 +83,91 @@ def run_glob(pattern: str) -> str:
 
 
 
-BASE_TOOLS = [
-  {
-    "type": "function",
-    "function": {
-      "name": "bash",
-      "description": "Run a shell command.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "command": { "type": "string" }
-        },
-        "required": ["command"]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "read_file",
-      "description": "Read file contents.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "path": { "type": "string" },
-          "limit": { "type": "integer" }
-        },
-        "required": ["path"]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "write_file",
-      "description": "Write content to a file.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "path": { "type": "string" },
-          "content": { "type": "string" }
-        },
-        "required": ["path", "content"]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "edit_file",
-      "description": "Replace exact text in a file once.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "path": { "type": "string" },
-          "old_text": { "type": "string" },
-          "new_text": { "type": "string" }
-        },
-        "required": ["path", "old_text", "new_text"]
-      }
-    }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "glob",
-      "description": "Find files matching a glob pattern; ** matches recursively.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "pattern": { "type": "string" }
-        },
-        "required": ["pattern"]
-      }
+BASH_TOOL = {
+  "type": "function",
+  "function": {
+    "name": "bash",
+    "description": "Run a shell command.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "command": { "type": "string" }
+      },
+      "required": ["command"]
     }
   }
+}
+
+READ_FILE_TOOL = {
+  "type": "function",
+  "function": {
+    "name": "read_file",
+    "description": "Read file contents.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "limit": { "type": "integer" }
+      },
+      "required": ["path"]
+    }
+  }
+}
+
+WRITE_FILE_TOOL = {
+  "type": "function",
+  "function": {
+    "name": "write_file",
+    "description": "Write content to a file.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "content": { "type": "string" }
+      },
+      "required": ["path", "content"]
+    }
+  }
+}
+
+EDIT_FILE_TOOL = {
+  "type": "function",
+  "function": {
+    "name": "edit_file",
+    "description": "Replace exact text in a file once.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "old_text": { "type": "string" },
+        "new_text": { "type": "string" }
+      },
+      "required": ["path", "old_text", "new_text"]
+    }
+  }
+}
+
+GLOB_TOOL = {
+  "type": "function",
+  "function": {
+    "name": "glob",
+    "description": "Find files matching a glob pattern; ** matches recursively.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "pattern": { "type": "string" }
+      },
+      "required": ["pattern"]
+    }
+  }
+}
+
+BASE_TOOLS = [
+    BASH_TOOL,
+    READ_FILE_TOOL,
+    WRITE_FILE_TOOL,
+    EDIT_FILE_TOOL,
+    GLOB_TOOL,
 ]
 
 BASE_HANDLERS = {
@@ -172,65 +175,7 @@ BASE_HANDLERS = {
     "read_file": run_read, 
     "write_file": run_write,
     "edit_file": run_edit, 
-    "glob": run_glob,
-    "todo_write": TODO.run_todo_write
-}
-
-TODO_WRITE_TOOL = {
-    "type": "function",
-    "function": {
-      "description": "Create and manage a task list for your current coding session.",
-      "name": "todo_write",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "todos": {
-            "items": {
-              "properties": {
-                "content": {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                "status": {
-                  "enum": ["pending", "in_progress", "completed"],
-                  "type": "string"
-                }
-              },
-              "required": ["content", "status"],
-              "type": "object"
-            },
-            "maxItems": 20,
-            "type": "array"
-          }
-        },
-        "required": ["todos"]
-      }
-    }
-}
-
-SPAWN_SUBAGENT_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "spawn_subagent",
-        "description": "Run a subagent with fresh conversation context and return its final text.",
-        "parameters": {
-            "type": "object",
-            "properties": {"prompt": {"type": "string", "minLength": 1}},
-            "required": ["prompt"],
-        },
-    }
-}
-
-SUB_TOOLS = list(BASE_TOOLS)
-
-SUB_HANDLERS = dict(BASE_HANDLERS)
-
-TOOLS = [*BASE_TOOLS, TODO_WRITE_TOOL, SPAWN_SUBAGENT_TOOL]
-
-TOOL_HANDLERS = {
-    **BASE_HANDLERS,
-    "todo_write": TODO.run_todo_write,
-    "spawn_subagent": run_subagent
+    "glob": run_glob
 }
 
 

@@ -1,4 +1,4 @@
-from llm import WORKDIR
+from config import WORKDIR
 from permission import permission_hook
 
 

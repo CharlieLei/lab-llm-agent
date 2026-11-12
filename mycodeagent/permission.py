@@ -1,5 +1,5 @@
 import re
-from llm import WORKDIR
+from config import WORKDIR
 
 
 DENY_LIST = [

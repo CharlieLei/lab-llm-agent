@@ -1,10 +1,21 @@
 import json
-from typing import List
-from llm import WORKDIR, MODEL, ENVIRONMENT_PROMPT, client
-from tools import TOOLS, TOOL_HANDLERS, execute_tool
+from config import WORKDIR, ENVIRONMENT_PROMPT
+from llm import call_llm
+from tools import BASE_TOOLS, BASE_HANDLERS, execute_tool
 from hooks import trigger_hooks
-from todo import TODO
+from todo import TodoManager, TODO_WRITE_TOOL
+from subagent import run_subagent, SPAWN_SUBAGENT_TOOL
 
+
+TODO = TodoManager()
+
+TOOLS = [*BASE_TOOLS, TODO_WRITE_TOOL, SPAWN_SUBAGENT_TOOL]
+
+TOOL_HANDLERS = {
+    **BASE_HANDLERS,
+    "todo_write": TODO.run_todo_write,
+    "spawn_subagent": run_subagent
+}
 
 SYSTEM = (
     f"You are a coding agent at {WORKDIR}. Environment: {ENVIRONMENT_PROMPT}. "
@@ -13,24 +24,13 @@ SYSTEM = (
 )
 
 
-def call_llm(messages):
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=messages,
-        tools=TOOLS,
-        tool_choice="auto",
-        parallel_tool_calls=True,
-    )
-    return response.choices[0].message
-
-
-def agent_loop(messages: List):
+def agent_loop(messages: list):
     loop_cnt = 0
     while True:
         loop_cnt += 1
         print(f"\033[90m[MAIN] loop {loop_cnt}.\033[0m")
         
-        message = call_llm(messages=messages)
+        message = call_llm(TOOLS, messages)
         
         messages.append({
             "role": message.role, 

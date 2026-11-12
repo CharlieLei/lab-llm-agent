@@ -4,6 +4,7 @@ MARKERS = {
     "completed": "[x]"
 }
 
+
 class TodoManager:
     def __init__(self) -> None:
         self.items : list[dict] = []
@@ -11,7 +12,7 @@ class TodoManager:
         
     def run_todo_write(self, todos: list) -> str:
         try:
-            output = TODO.update(todos)
+            output = self.update(todos)
             print(f"\033[90m[TODO] {len(todos)} todos\033[0m")
             return output
         except ValueError as e:
@@ -62,4 +63,34 @@ class TodoManager:
             return None
 
 
-TODO = TodoManager()
+TODO_WRITE_TOOL = {
+    "type": "function",
+    "function": {
+      "description": "Create and manage a task list for your current coding session.",
+      "name": "todo_write",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "todos": {
+            "items": {
+              "properties": {
+                "content": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "status": {
+                  "enum": ["pending", "in_progress", "completed"],
+                  "type": "string"
+                }
+              },
+              "required": ["content", "status"],
+              "type": "object"
+            },
+            "maxItems": 20,
+            "type": "array"
+          }
+        },
+        "required": ["todos"]
+      }
+    }
+}
