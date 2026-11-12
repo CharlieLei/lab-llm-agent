@@ -185,8 +185,10 @@ def execute_tool(handlers, tool_name, args):
         print(f"\033[31m< Tool blocked: {blocked}\033[0m")
         return blocked
     
-    handler = handlers[tool_name]
-    output = handler(**args) if handler else f"Unknown: {tool_name}"
+    handler = handlers.get(tool_name)
+    if handler is None:
+        return f"Unknown tool: {tool_name}"
+    output = handler(**args)
     
     trigger_hooks("PostToolUse", tool_name, output)
     return output

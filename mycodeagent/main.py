@@ -1,26 +1,32 @@
 import json
-from config import WORKDIR, ENVIRONMENT_PROMPT
+from config import WORKDIR, SKILLS_DIR, ENVIRONMENT_PROMPT
 from llm import call_llm
 from tools import BASE_TOOLS, BASE_HANDLERS, execute_tool
 from hooks import trigger_hooks
 from todo import TodoManager, TODO_WRITE_TOOL
 from subagent import run_subagent, SPAWN_SUBAGENT_TOOL
+from skill import SkillLoader, LOAD_SKILL_TOOL
 
 
 TODO = TodoManager()
 
-TOOLS = [*BASE_TOOLS, TODO_WRITE_TOOL, SPAWN_SUBAGENT_TOOL]
+SKILL_LOADER = SkillLoader(SKILLS_DIR)
+
+TOOLS = [*BASE_TOOLS, TODO_WRITE_TOOL, SPAWN_SUBAGENT_TOOL, LOAD_SKILL_TOOL]
 
 TOOL_HANDLERS = {
     **BASE_HANDLERS,
     "todo_write": TODO.run_todo_write,
-    "spawn_subagent": run_subagent
+    "spawn_subagent": run_subagent,
+    "load_skill": SKILL_LOADER.load
 }
 
 SYSTEM = (
     f"You are a coding agent at {WORKDIR}. Environment: {ENVIRONMENT_PROMPT}. "
-    "Before starting any multi-step task, use todo_write to plan your steps. "
-    "Update status as you go."
+    "Use tools to solve tasks. "
+    "Act, don't explain.\n\n"
+    f"Skills available:\n{SKILL_LOADER.catalog()}\n\n"
+    "Use load_skill to read the full instructions when a skill applies."
 )
 
 

@@ -11,6 +11,8 @@ MODEL = os.getenv("OPENAI_MODEL", "")
 
 WORKDIR = Path.cwd()
 
+SKILLS_DIR = WORKDIR / "skills"
+
 ENVIRONMENT_PROMPT = (
     "Windows: the bash tool runs through cmd.exe; "
     "use cmd.exe syntax, not Unix "
